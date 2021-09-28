@@ -24,10 +24,16 @@ target_include_directories(tiny_ipc INTERFACE
   $<INSTALL_INTERFACE:include>
   )
 
-add_executable(client example/client.cpp)
-target_link_libraries(client PUBLIC tiny_ipc Threads::Threads)
-add_executable(server example/server.cpp)
-target_link_libraries(server PUBLIC tiny_ipc Threads::Threads)
+option(TINY_IPC_BUILD_EXAMPLE "enable examples" OFF)
+
+if(TINY_IPC_BUILD_EXAMPLE)
+  add_executable(client example/client.cpp)
+  add_executable(tiny_ipc::client ALIAS client)
+  target_link_libraries(client PUBLIC tiny_ipc Threads::Threads)
+  add_executable(server example/server.cpp)
+  add_executable(tiny_ipc::server ALIAS server)
+  target_link_libraries(server PUBLIC tiny_ipc Threads::Threads)
+endif(TINY_IPC_BUILD_EXAMPLE)
 
 packageProject(
   NAME ${PROJECT_NAME}
