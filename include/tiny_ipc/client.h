@@ -3,6 +3,7 @@
 #include <tiny_ipc/proto_def.h>
 #include <tiny_ipc/detail/protocol.h>
 #include <tiny_ipc/detail/packet.h>
+#include <tiny_ipc/detail/encode.h>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <tiny_tuple/tuple.h>
 
@@ -27,7 +28,7 @@ struct client
     {
         using signature = detail::get_signature<P, M>;
         packet new_msg;
-        encode<signature>(new_msg, std::forward<Cs>(params)...);
+        detail::encode<signature>(new_msg, std::forward<Cs>(params)...);
         ::sendmsg(socket.native_handle(), new_msg.commit_to_header(), MSG_NOSIGNAL);
     }
     state           protocol_state{start};
