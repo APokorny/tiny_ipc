@@ -15,7 +15,7 @@ struct client
     // TODO maybe make the protocol configureable
     boost::asio::local::stream_protocol::socket& socket;
     tiny_tuple::tuple<Ts...>                     callbacks;
-    client(boost::asio::local::stream_protocol::socket& s, Ts&&... ts) : socket{s}, callbacks{std::move(ts)...} {}
+    client(boost::asio::local::stream_protocol::socket& s, const P, Ts&&... ts) : socket{s}, callbacks{std::move(ts)...} {}
     enum state
     {
         start,
@@ -24,7 +24,7 @@ struct client
 
     template <c::method_name M, typename ResultHandler, typename... Cs>
     requires detail::is_in_protocol<P, M> && detail::is_convertible_signature<P, M, Cs...>  //
-    void execute(ResultHandler && fun, Cs&&... params)
+    void execute(M, ResultHandler && fun, Cs&&... params)
     {
         using signature = detail::get_signature<P, M>;
         packet new_msg;

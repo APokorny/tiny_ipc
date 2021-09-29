@@ -225,12 +225,12 @@ concept signal = is_signal<T>;
 }  // namespace concepts
 
 template <c::signature Sig, c::method_name Name>
-impl::method<Name, Sig> method(Name &&) noexcept
+constexpr impl::method<Name, Sig> method(Name &&) noexcept
 {
     return {};
 }
 template <c::signature Sig, c::signal_name Name>
-impl::signal<Name, Sig> signal(Name &&) noexcept
+constexpr impl::signal<Name, Sig> signal(Name &&) noexcept
 {
     return {};
 }

@@ -1,3 +1,7 @@
+// Copyright (c) 2021 Andreas Pokorny
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TINY_IPC_PACKET_H_INCLUDED
 #define TINY_IPC_PACKET_H_INCLUDED
 
@@ -31,20 +35,41 @@ struct packet
     void    add_cred() noexcept { creds = true; }
     void    add_data(std::span<char const> const& data)
     {
-        buffers.emplace_back(data.size());
-        std::memcpy(buffers.back().data(), data.data(), data.size());
-        iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
+        if (!buffers.empty() && (buffers.back().capacity() - buffers.back().size()) >= data.size())
+        {
+        auto& buf_back = buffers.back();
+            buf_back.insert(buf_back.end(), data.begin(), data.end());
+            iovecs.back().iov_len = buf_back.size();
+        }
+        else
+        {
+            buffers.emplace_back(data.size());
+            std::memcpy(buffers.back().data(), data.data(), data.size());
+            iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
+        }
     }
 
     std::span<char> reserve_data(std::size_t count)
     {
-        buffers.emplace_back(count);
-        iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
-        return std::span<char>(buffers.back().data(), buffers.back().size());
+        if (!buffers.empty() && (buffers.back().capacity() - buffers.back().size()) >= count)
+        {
+        auto& buf_back = buffers.back();
+            buf_back.resize(count);
+            iovecs.back().iov_base = buf_back.data();
+            iovecs.back().iov_len = buf_back.size();
+            return std::span<char>(buf_back.data() + buf_back.size() - count, count);
+        }
+        else
+        {
+            buffers.emplace_back(count);
+            iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
+            return std::span<char>(buffers.back().data(), buffers.back().size());
+        }
     }
 
     msghdr* commit_to_header()
     {
+      // todo handle empty iov
         header.msg_name    = nullptr;
         header.msg_namelen = 0;
         header.msg_iov     = iovecs.data();
