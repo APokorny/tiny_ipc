@@ -7,6 +7,11 @@
 #include <type_traits>
 #include <cstddef>
 #include <algorithm>
+#include <tiny_tuple/map.h>
+#include <kvasir/mpl/types/list.hpp>
+#include <kvasir/mpl/algorithm/zip_with.hpp>
+#include <kvasir/mpl/sequence/make_sequence.hpp>
+
 #define TINY_IPC_USE_LEGACY_LITERAL_OPERATORS
 namespace tiny_ipc
 {
@@ -203,10 +208,14 @@ namespace impl
 template <c::method_name Name, c::signature Sig>
 struct method
 {
+    using name      = Name;
+    using signature = Sig;
 };
 template <c::signal_name Name, c::signature Sig>
 struct signal
 {
+    using name      = Name;
+    using signature = Sig;
 };
 
 }  // namespace impl
@@ -244,12 +253,26 @@ template <typename T>
 concept interface_param = is_interface_param<T>;
 }  // namespace concepts
 
+namespace impl
+{
+struct to_item
+{
+    template <typename A, typename B>
+    using f = tiny_tuple::detail::item<A, B>;
+};
+};  // namespace impl
+
 // TODO find a way to transparently introduce versions wihout messing up the
 // sequence or restricting the protocol to much
 template <c::interface_param... Args>
 struct protocol
 {
     constexpr protocol(Args &&...) noexcept {}
+    using protocol_ids = kvasir::mpl::call<                                                          //
+        kvasir::mpl::zip_with<impl::to_item, kvasir::mpl::cfe<tiny_tuple::map>>,                     //
+        kvasir::mpl::list<typename Args::name...>,                                                   //
+        kvasir::mpl::eager::make_int_sequence<kvasir::mpl::uint_<sizeof...(Args)>>  //
+        >;
 };
 
 template <typename SN, typename F>
@@ -281,6 +304,10 @@ template <typename T>
 concept protocol = is_protocol<T>;
 };  // namespace concepts
 
+template<c::protocol P,typename T>
+constexpr std::size_t id_of_item = tiny_tuple::value_type<T, typename P::protocol_ids>::type::value::value;
+template<typename T>
+using name_of = typename T::key;
 }  // namespace tiny_ipc
 
 #endif
