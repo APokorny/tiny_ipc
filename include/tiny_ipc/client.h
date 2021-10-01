@@ -23,11 +23,7 @@ struct client
     tiny_tuple::map<detail::to_item<Ts>...>      callbacks;
     uint16_t                                     cookie_generator;
 
-    union
-    {
-        msg_header value;
-        char       data[sizeof(msg_header)];
-    } header;
+    msg_header                                             header;
     std::vector<char>                                      payload;
     std::function<void(boost::system::error_code, size_t)> handle_header;
     std::function<void(boost::system::error_code, size_t)> handle_payload;
@@ -46,18 +42,20 @@ struct client
                   if (ec) {}
                   else
                   {
-                      auto item_to_drop = std::ranges::remove(std::views::all(active_requests), header.value.id, &active_request::id);
+                      auto item_to_drop = std::ranges::remove(std::views::all(active_requests), header.id, &active_request::id);
                       if (item_to_drop.empty())
                       {
-                          handle_payload = [this](boost::system::error_code ec, std::size_t)
-                          {
-                              if (ec) {}
-                              else
+                          detail::forward_item<P>(
+                              header.id.id, callbacks,
+                              [this](auto& handler, auto const& signature)
                               {
-                                  detail::forward_item<P>(header.value.id.id, callbacks, [](auto&) {});
-                                  async_read(socket, boost::asio::buffer(header.data, sizeof(header.data)), handle_header);
-                              }
-                          };
+                                  handle_payload = [this, &handler](boost::system::error_code ec, std::size_t bytes_transfered)
+                                  {
+                                      decode_items();
+                                      // invoke handler
+                                      async_read(socket, boost::asio::buffer(&header, sizeof(header)), handle_header);
+                                  };
+                              });
                       }
                       else
                       {
@@ -68,18 +66,18 @@ struct client
                               else
                               {
                                   handler();
-                                  async_read(socket, boost::asio::buffer(header.data, sizeof(header.data)), handle_header);
+                                  async_read(socket, boost::asio::buffer(&header, sizeof(header)), handle_header);
                               }
                           };
                           active_requests.erase(item_to_drop.begin(), item_to_drop.end());
                       }
-                      payload.resize(header.value.payload);
+                      payload.resize(header.payload);
                       async_read(socket, boost::asio::buffer(payload.data(), payload.size()), handle_payload);
                   }
               }),
           handle_payload([](boost::system::error_code, std::size_t) {})
     {
-        async_read(socket, boost::asio::buffer(header.data, sizeof(header.data)), handle_header);
+        async_read(socket, boost::asio::buffer(&header, sizeof(header)), handle_header);
     }
 
     template <c::method_name M, typename ResultHandler, typename... Cs>

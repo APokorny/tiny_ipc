@@ -1,5 +1,5 @@
-#ifndef TINY_IPC_DETAIL_ENCODE_H_INCLUDED
-#define TINY_IPC_DETAIL_ENCODE_H_INCLUDED
+#ifndef TINY_IPC_DETAIL_DECODE_H_INCLUDED
+#define TINY_IPC_DETAIL_DECODE_H_INCLUDED
 
 #include <tiny_ipc/detail/serialization_utilities.h>
 
@@ -59,41 +59,43 @@ namespace detail
 {
 namespace impl
 {
-template <typename T, typename U>
-requires is_trivially_serializable_v<T> && std::is_same_v<T, std::decay_t<U>>
-int internal_encode_item(packet& encoded_msg, type<T>, U&& param)
+template <typename T>
+requires is_trivially_serializable_v<T> T internal_encode_item(packet& encoded_msg, type<T>)
 {
-    encoded_msg.add_data({static_cast<char const*>(&param), sizeof(U)});
-    return 0;
+    T ret;
+    // memcpy
+    return ret;
 }
 
-template <typename T, typename U>
-requires(is_trivially_serializable_v<T> && (!std::is_same_v<T, std::decay_t<U>>)) int internal_encode_item(packet& encoded_msg, type<T>,
-                                                                                                           U&&     param)
+std::string internal_decode_item(packet& decoded_msg, type<std::string>)
 {
-    T temp = param;
-    encoded_msg.add_data({static_cast<char const*>(&temp), sizeof(U)});
-    return 0;
+    std::string str;
+    return str;
 }
 
-template <typename U, typename T>
-requires(!is_trivially_serializable_v<T>) int internal_encode_item(packet& encoded_msg, type<T>, U&& param)
+std::string_view internal_decode_item(packet& decoded_msg, type<std::string_view>)
 {
-    tiny_ipc::encode_item(encoded_msg, type<T>{}, std::forward<U>(param));
-    return 0;
+    std::string_view str;
+    return str
 }
-template <typename... ListItems, typename... Ts>
-void encode_items(packet& encoded_msg, kvasir::mpl::list<ListItems...>, Ts&&... params)
+
+template <typename T>
+requires(!is_trivially_serializable_v<T>) T internal_decode_item(packet& decoded_msg, type<T>)
 {
-    int ignore[] = {internal_encode_item(encoded_msg, type<ListItems>{}, std::forward<Ts>(params))...};
+    return tiny_ipc::decode_item(decoded_msg, type<T>{});
+}
+template <typename... ListItems, typename F>
+void decode_items(packet& decoded_msg, kvasir::mpl::list<ListItems...>, F&& fun)
+{
+    fun(internal_decode_item(decoded_msg, type<ListItems>{})...);
 }
 }  // namespace impl
 
-template <typename Signature, typename... Ts>
-void encode(packet& encoded_msg, Ts&&... params)
+template <typename Signature, typename F>
+void decode(packet& decoded_msg, F&& fun)
 {
     using signature_list = typename impl::to_list<Signature>::type;
-    impl::encode_items(encoded_msg, signature_list{}, std::forward<Ts>(params)...);
+    impl::decode_items(decoded_msg, signature_list{}, std::forward<F>(fun));
 }
 }  // namespace detail
 }  // namespace tiny_ipc
