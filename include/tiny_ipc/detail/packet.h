@@ -19,6 +19,18 @@
 
 namespace tiny_ipc
 {
+struct msg_id
+{
+    uint16_t id;
+    uint16_t cookie;
+    auto     operator<=>(msg_id const&) const = default;
+};
+struct msg_header
+{
+    msg_id   id;
+    uint16_t payload;
+    auto     operator<=>(msg_header const&) const = default;
+};
 struct packet
 {
     bool                           creds{false};
@@ -37,7 +49,7 @@ struct packet
     {
         if (!buffers.empty() && (buffers.back().capacity() - buffers.back().size()) >= data.size())
         {
-        auto& buf_back = buffers.back();
+            auto& buf_back = buffers.back();
             buf_back.insert(buf_back.end(), data.begin(), data.end());
             iovecs.back().iov_len = buf_back.size();
         }
@@ -53,10 +65,10 @@ struct packet
     {
         if (!buffers.empty() && (buffers.back().capacity() - buffers.back().size()) >= count)
         {
-        auto& buf_back = buffers.back();
+            auto& buf_back = buffers.back();
             buf_back.resize(count);
             iovecs.back().iov_base = buf_back.data();
-            iovecs.back().iov_len = buf_back.size();
+            iovecs.back().iov_len  = buf_back.size();
             return std::span<char>(buf_back.data() + buf_back.size() - count, count);
         }
         else
@@ -69,7 +81,7 @@ struct packet
 
     msghdr* commit_to_header()
     {
-      // todo handle empty iov
+        // todo handle empty iov
         header.msg_name    = nullptr;
         header.msg_namelen = 0;
         header.msg_iov     = iovecs.data();
