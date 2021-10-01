@@ -28,9 +28,19 @@ template<typename T> struct is_trivially_serializable<std::span<T>> { struct typ
 template <typename T>
 constexpr bool is_trivially_serializable_v = is_trivially_serializable<T>::type::value;
 
-template <typename T>
-void encode_item(packet& encoded_msg, type<uint32_t>, T&& param)
+template <typename U, typename T>
+requires (is_trivially_serializable_v<U> && std::is_same_v<std::decay_t<U>, std::decay_t<T>>)
+void encode_item(packet& encoded_msg, type<U>, T&& param)
 {
+    encoded_msg.add_data({&param, sizeof(param)});
+}
+
+template <typename U, typename T>
+requires (is_trivially_serializable_v<U> && !std::is_same_v<std::decay_t<U>, std::decay_t<T>>)
+void encode_item(packet& encoded_msg, type<U>, T&& param)
+{
+    U temp = std::forward<T>(param);
+    encoded_msg.add_data({&temp, sizeof(temp)});
 }
 
 template <typename T>
@@ -42,15 +52,32 @@ void encode_item(packet& encoded_msg, type<::ucred>, T&& param)
 template <typename T>
 void encode_item(packet& encoded_msg, type<fd>, T&& param)
 {
-    encoded_msg.add_fd(param);
+    encoded_msg.add_fd(std::forward<fd>(param));
 }
 
-template <typename T>
-void encode_item(packet& encoded_msg, type<std::string_view>, T&& param)
+void encode_item(packet& encoded_msg, type<std::string>, std::string const& param)
 {
-    encoded_msg.add_fd(param);
+    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
+    uint16_t length = param.length();
+    mempcpy(part.data(), &length, sizeof(length));
+    mempcpy(part.data() + sizeof(length), param.data(), length);
 }
 
+void encode_item(packet& encoded_msg, type<std::string>, char const* param)
+{
+    uint16_t length = strlen(param);
+    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + length);
+    mempcpy(part.data(), &length, sizeof(length));
+    mempcpy(part.data() + sizeof(length), param, length);
+}
+
+void encode_item(packet& encoded_msg, type<std::string>, std::string_view const& param)
+{
+    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
+    uint16_t length = param.length();
+    mempcpy(part.data(), &length, sizeof(length));
+    mempcpy(part.data() + sizeof(length), param.data(), length);
+}
 namespace detail
 {
 namespace impl

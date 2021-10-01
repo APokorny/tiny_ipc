@@ -51,13 +51,11 @@ struct packet
         {
             auto& buf_back = buffers.back();
             buf_back.insert(buf_back.end(), data.begin(), data.end());
-            iovecs.back().iov_len = buf_back.size();
         }
         else
         {
             buffers.emplace_back(data.size());
             std::memcpy(buffers.back().data(), data.data(), data.size());
-            iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
         }
     }
 
@@ -67,21 +65,20 @@ struct packet
         {
             auto& buf_back = buffers.back();
             buf_back.resize(count);
-            iovecs.back().iov_base = buf_back.data();
-            iovecs.back().iov_len  = buf_back.size();
             return std::span<char>(buf_back.data() + buf_back.size() - count, count);
         }
         else
         {
             buffers.emplace_back(count);
-            iovecs.push_back(iovec{buffers.back().data(), buffers.back().size()});
             return std::span<char>(buffers.back().data(), buffers.back().size());
         }
     }
 
     msghdr* commit_to_header()
     {
-        // todo handle empty iov
+        iovecs.reserve(buffers.size());
+        for (auto & buf : buffers)
+            iovecs.emplace_back(buf.data(), buf.size());
         header.msg_name    = nullptr;
         header.msg_namelen = 0;
         header.msg_iov     = iovecs.data();
