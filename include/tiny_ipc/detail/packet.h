@@ -29,6 +29,7 @@ struct msg_header
 {
     msg_id   id;
     uint16_t payload;
+    uint16_t control;
     auto     operator<=>(msg_header const&) const = default;
 };
 struct packet
@@ -40,7 +41,17 @@ struct packet
     std::vector<std::vector<char>> buffers;
     std::vector<char>              ctrl_buffer;
 
-    packet()                    = default;
+    explicit packet(msg_header const& start)
+    {
+        const uint16_t size_hint = start.payload ? start.payload : 128;
+
+        buffers.emplace_back(0);
+        buffers.back().reserve(size_hint + sizeof(start));
+        buffers.back().resize(sizeof(start));
+        std::memcpy(buffers[0].data(), &start, sizeof(start));
+
+        ctrl_buffer.reserve(start.control);
+    }
     packet(packet const& other) = delete;
     packet& operator=(packet const& other) = delete;
     void    add_fd(int fd) { fds.push_back(fd); }
@@ -64,7 +75,7 @@ struct packet
         if (!buffers.empty() && (buffers.back().capacity() - buffers.back().size()) >= count)
         {
             auto& buf_back = buffers.back();
-            buf_back.resize(count);
+            buf_back.resize(buf_back.size() + count);
             return std::span<char>(buf_back.data() + buf_back.size() - count, count);
         }
         else
@@ -77,12 +88,20 @@ struct packet
     msghdr* commit_to_header()
     {
         iovecs.reserve(buffers.size());
-        for (auto & buf : buffers)
+        uint16_t final_size = 0;
+        for (auto& buf : buffers)
+        {
+            final_size += buf.size();
             iovecs.emplace_back(buf.data(), buf.size());
+        }
+        const uint16_t payload_size = final_size - sizeof(msg_header);
+        std::memcpy(buffers[0].data() + sizeof(msg_id), &payload_size, sizeof(payload_size));
+
         header.msg_name    = nullptr;
         header.msg_namelen = 0;
         header.msg_iov     = iovecs.data();
         header.msg_iovlen  = iovecs.size();
+        header.msg_flags   = 0;
         if (creds || fds.size())
         {
             ctrl_buffer.resize((creds ? (CMSG_SPACE(sizeof(::ucred))) : 0) +  //
@@ -94,7 +113,7 @@ struct packet
             {
                 first             = CMSG_FIRSTHDR(&header);
                 first->cmsg_len   = CMSG_LEN(sizeof(ucred));
-                first->cmsg_level = CMSG_LEN(sizeof(ucred));
+                first->cmsg_level = SOL_SOCKET;
                 first->cmsg_type  = SCM_CREDENTIALS;
                 ::ucred my_creds{.pid = getpid(), .uid = geteuid(), .gid = getegid()};
                 std::memcpy(CMSG_DATA(first), &my_creds, sizeof(my_creds));
@@ -107,6 +126,8 @@ struct packet
                 first->cmsg_type  = SCM_RIGHTS;
                 std::memcpy(CMSG_DATA(first), fds.data(), fds.size() * sizeof(int));
             }
+            const uint16_t control_size = ctrl_buffer.size();
+            std::memcpy(buffers[0].data() + sizeof(msg_id) + sizeof(payload_size), &control_size, sizeof(control_size));
         }
         else
         {
@@ -118,6 +139,7 @@ struct packet
         return &header;
     }
 };
+
 }  // namespace tiny_ipc
 
 #endif

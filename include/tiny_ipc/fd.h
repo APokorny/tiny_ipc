@@ -5,6 +5,7 @@
 #ifndef TINY_IPC_FD_H_INCLUDED
 #define TINY_IPC_FD_H_INCLUDED
 
+#include <unistd.h>
 #include <memory>
 
 namespace tiny_ipc

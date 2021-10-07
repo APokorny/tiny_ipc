@@ -197,6 +197,8 @@ concept method_name = is_method_name<T>;
 template <typename T>
 concept signal_name = is_signal_name<T>;
 template <typename T>
+concept element_name = is_signal_name<T> || is_method_name<T>;
+template <typename T>
 concept version = is_version<T>;
 template <typename T>
 concept signature = is_signature<T>;
@@ -278,12 +280,14 @@ struct protocol
 template <typename SN, typename F>
 struct signal_handler
 {
+    using name = SN;
     F callable;
 };
 
 template <typename MN, typename F>
 struct method_handler
 {
+    using name = MN;
     F callable;
 };
 

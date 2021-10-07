@@ -1,101 +1,83 @@
+// Copyright (c) 2021 Andreas Pokorny
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TINY_IPC_DETAIL_DECODE_H_INCLUDED
 #define TINY_IPC_DETAIL_DECODE_H_INCLUDED
 
+#include <tiny_ipc/detail/message_parser.h>
 #include <tiny_ipc/detail/serialization_utilities.h>
 
 namespace tiny_ipc
 {
-template <typename U, typename T>
-requires(is_trivially_serializable_v<U>&& std::is_same_v<std::decay_t<U>, std::decay_t<T>>) void encode_item(packet& encoded_msg, type<U>,
-                                                                                                             T&&     param)
+// Overload this funcion as needed
+template <typename T>
+requires is_trivially_serializable_v<T> T decode_item(detail::message_parser& msg, type<T>)
 {
-    encoded_msg.add_data({&param, sizeof(param)});
+    // alternatively if we guarantee alignment we could decode by casting - but then there is a dependency on ABI
+    T    ret;
+    auto data = msg.consume_message(sizeof(ret));
+    std::memcpy(&ret, data.data(), data.size());
+    return ret;
 }
 
-template <typename U, typename T>
-requires(is_trivially_serializable_v<U> && !std::is_same_v<std::decay_t<U>, std::decay_t<T>>) void encode_item(packet& encoded_msg, type<U>,
-                                                                                                               T&&     param)
+ucred decode_item(detail::message_parser& msg, type<ucred>)
 {
-    U temp = std::forward<T>(param);
-    encoded_msg.add_data({&temp, sizeof(temp)});
+    auto creds = msg.get_cred();
+    if (creds)
+        return *creds;
+    else
+        return ucred{std::numeric_limits<pid_t>::max(), 
+          std::numeric_limits<uid_t>::max(), 
+          std::numeric_limits<gid_t>::max()};
 }
+
+fd decode_item(detail::message_parser& msg, type<fd>) { return msg.consume_fd(); }
 
 template <typename T>
-void encode_item(packet& encoded_msg, type<::ucred>, T&& param)
+std::vector<T> decode_item(detail::message_parser& msg, type<std::vector<T>>)
 {
-    encoded_msg.add_cred();
+    auto           vec_size = decode_item(msg, type<uint16_t>{});
+    std::vector<T> ret;
+    ret.reserve(vec_size);
+    for (int i = 0; i != vec_size; ++i) ret.push_back(decode_item(msg, type<T>{}));
+    return ret;
 }
 
-template <typename T>
-void encode_item(packet& encoded_msg, type<fd>, T&& param)
+std::string decode_item(detail::message_parser& msg, type<std::string>)
 {
-    encoded_msg.add_fd(std::forward<fd>(param));
+    auto length = decode_item(msg, type<uint16_t>{});
+    return std::string(msg.consume_message(length).data(), length);
 }
 
-void encode_item(packet& encoded_msg, type<std::string>, std::string const& param)
+std::string_view decode_item(detail::message_parser& msg, type<std::string_view>)
 {
-    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
-    uint16_t length = param.length();
-    mempcpy(part.data(), &length, sizeof(length));
-    mempcpy(part.data() + sizeof(length), param.data(), length);
+    auto length = decode_item(msg, type<uint16_t>{});
+    return std::string_view(msg.consume_message(length).data(), length);
 }
 
-void encode_item(packet& encoded_msg, type<std::string>, char const* param)
+char const* decode_item(detail::message_parser& msg, type<char const*>)
 {
-    uint16_t length = strlen(param);
-    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + length);
-    mempcpy(part.data(), &length, sizeof(length));
-    mempcpy(part.data() + sizeof(length), param, length);
-}
-
-void encode_item(packet& encoded_msg, type<std::string>, std::string_view const& param)
-{
-    auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
-    uint16_t length = param.length();
-    mempcpy(part.data(), &length, sizeof(length));
-    mempcpy(part.data() + sizeof(length), param.data(), length);
+    auto length = decode_item(msg, type<uint16_t>{});
+    return msg.consume_message(length).data();
 }
 namespace detail
 {
 namespace impl
 {
-template <typename T>
-requires is_trivially_serializable_v<T> T internal_encode_item(packet& encoded_msg, type<T>)
-{
-    T ret;
-    // memcpy
-    return ret;
-}
-
-std::string internal_decode_item(packet& decoded_msg, type<std::string>)
-{
-    std::string str;
-    return str;
-}
-
-std::string_view internal_decode_item(packet& decoded_msg, type<std::string_view>)
-{
-    std::string_view str;
-    return str
-}
-
-template <typename T>
-requires(!is_trivially_serializable_v<T>) T internal_decode_item(packet& decoded_msg, type<T>)
-{
-    return tiny_ipc::decode_item(decoded_msg, type<T>{});
-}
 template <typename... ListItems, typename F>
-void decode_items(packet& decoded_msg, kvasir::mpl::list<ListItems...>, F&& fun)
+decltype(std::declval<F>()(std::declval<ListItems>()...)) decode_items(detail::message_parser& msg, kvasir::mpl::list<ListItems...>,
+                                                                       F&&                     fun)
 {
-    fun(internal_decode_item(decoded_msg, type<ListItems>{})...);
+    return fun(decode_item(msg, type<ListItems>{})...);
 }
 }  // namespace impl
 
 template <typename Signature, typename F>
-void decode(packet& decoded_msg, F&& fun)
+auto decode(detail::message_parser& msg, F&& fun)
 {
     using signature_list = typename impl::to_list<Signature>::type;
-    impl::decode_items(decoded_msg, signature_list{}, std::forward<F>(fun));
+    return impl::decode_items(msg, signature_list{}, std::forward<F>(fun));
 }
 }  // namespace detail
 }  // namespace tiny_ipc

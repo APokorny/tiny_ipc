@@ -1,7 +1,12 @@
+// Copyright (c) 2021 Andreas Pokorny
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TINY_IPC_DETAIL_ENCODE_H_INCLUDED
 #define TINY_IPC_DETAIL_ENCODE_H_INCLUDED
 
 #include <tiny_ipc/detail/serialization_utilities.h>
+#include <tiny_ipc/detail/packet.h>
 
 namespace tiny_ipc
 {
@@ -9,7 +14,7 @@ template <typename U, typename T>
 requires(is_trivially_serializable_v<U>&& std::is_same_v<std::decay_t<U>, std::decay_t<T>>) void encode_item(packet& encoded_msg, type<U>,
                                                                                                              T&&     param)
 {
-    encoded_msg.add_data({&param, sizeof(param)});
+    encoded_msg.add_data(std::span<char const>(static_cast<char const*>(static_cast<void const*>(&param)), sizeof(param)));
 }
 
 template <typename U, typename T>
@@ -24,6 +29,20 @@ template <typename T>
 void encode_item(packet& encoded_msg, type<::ucred>, T&& param)
 {
     encoded_msg.add_cred();
+}
+
+template <typename T, typename Container>
+void encode_item(packet& encoded_msg, type<std::vector<T>>, Container&& param)
+{
+    encode_item(encoded_msg, type<uint16_t>{}, param.size());
+    for (auto const& item : param) encode_item(encoded_msg, type<T>{}, item);
+}
+
+template <typename T, typename Container>
+void encode_item(packet& encoded_msg, type<std::span<T>>, Container&& param)
+{
+    encode_item(encoded_msg, type<uint16_t>{}, param.size());
+    for (auto const& item : param) encode_item(encoded_msg, type<T>{}, item);
 }
 
 template <typename T>
@@ -92,7 +111,7 @@ void encode_items(packet& encoded_msg, kvasir::mpl::list<ListItems...>, Ts&&... 
 template <typename Signature, typename... Ts>
 void encode(packet& encoded_msg, Ts&&... params)
 {
-    using signature_list = typename impl::to_list<Signature>::type;
+    using signature_list = typename detail::impl::to_list<Signature>::type;
     impl::encode_items(encoded_msg, signature_list{}, std::forward<Ts>(params)...);
 }
 }  // namespace detail

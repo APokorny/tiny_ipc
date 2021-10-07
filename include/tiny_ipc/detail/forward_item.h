@@ -1,3 +1,7 @@
+// Copyright (c) 2021 Andreas Pokorny
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TINY_IPC_DETAIL_FORWARD_ITEM_H_INCLUDED
 #define TINY_IPC_DETAIL_FORWARD_ITEM_H_INCLUDED
 #include <tiny_tuple/map.h>
@@ -8,7 +12,7 @@ namespace tiny_ipc::detail
 template <c::protocol P, typename... Ts, typename F>
 void forward_item(std::size_t id, tiny_tuple::map<Ts...>& ts, F&& f)
 {
-    int execute_f_on_matching_id[] = {((id == id_of_item<P, name_of<Ts>>) ? (f(tiny_tuple::get<name_of<Ts>>(ts)),0) : 0)...};
+    int execute_f_on_matching_id[] = {((id == id_of_item<P, name_of<Ts>>) ? (f(tiny_tuple::get<name_of<Ts>>(ts), get_signature<P, name_of<Ts>>{}),0) : 0)...};
     (void)execute_f_on_matching_id;
 }
 }  // namespace tiny_ipc::detail
