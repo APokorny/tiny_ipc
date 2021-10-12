@@ -69,7 +69,7 @@ requires(detail::is_in_protocol<P, typename Ts::name>&&... && true) auto create_
     };
 }
 template <c::protocol P, c::method_name M, typename ResultHandler, typename... Cs>
-requires detail::is_in_protocol<P, M> && detail::is_convertible_signature<P, M, Cs...>  //
+requires detail::is_in_protocol<P, M> && c::valid_invocation<P, M, Cs...>  //
 void execute_method(M, client& client_instance, ResultHandler&& fun, Cs&&... params)
 {
     using signature   = detail::get_signature<P, M>;

@@ -52,6 +52,7 @@ struct packet
 
         ctrl_buffer.reserve(start.control);
     }
+    packet(packet && other) = default;
     packet(packet const& other) = delete;
     packet& operator=(packet const& other) = delete;
     void    add_fd(int fd) { fds.push_back(fd); }
@@ -92,7 +93,7 @@ struct packet
         for (auto& buf : buffers)
         {
             final_size += buf.size();
-            iovecs.emplace_back(buf.data(), buf.size());
+            iovecs.push_back(iovec{buf.data(), buf.size()});
         }
         const uint16_t payload_size = final_size - sizeof(msg_header);
         std::memcpy(buffers[0].data() + sizeof(msg_id), &payload_size, sizeof(payload_size));

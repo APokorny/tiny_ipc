@@ -59,7 +59,7 @@ namespace literals
 {
 #if defined(__clang__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored
+#pragma GCC diagnostic ignored "-Wgnu-string-literal-operator-template"
 #endif
 template <typename CharT, CharT... String>
 constexpr inline method_name<method_lit<String...>> operator""_m() noexcept

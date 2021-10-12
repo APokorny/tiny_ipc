@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <iostream>
 #include <vector>
+#include <ranges>
 #include <tiny_ipc/proto_def.h>
 #include <tiny_ipc/detail/protocol.h>
 #include <tiny_ipc/detail/encode.h>
@@ -31,10 +32,10 @@ struct server_session
 };
 
 template <c::protocol P, c::method_handler... Ts>
-requires(detail::is_in_protocol<P, typename Ts::name>&&... && true) auto create_async_message_handler(server_session& server,
-                                                                                                      Ts&&... ts)
+requires(detail::is_in_protocol<P, typename Ts::name>&&... && true) auto create_async_message_handler(server_session& server, Ts&&... ts)
 {
-    return [&server, callbacks = tiny_tuple::map<detail::to_item<Ts>...>{detail::to_item<Ts>{std::move(ts.callable)}...}](boost::system::error_code ec) mutable
+    return [&server, callbacks = tiny_tuple::map<detail::to_item<Ts>...>{detail::to_item<Ts>{std::move(ts.callable)}...}](
+               boost::system::error_code ec) mutable
     {
         if (ec) {}
         else
@@ -74,6 +75,17 @@ void send_signal(server_session& session, Cs&&... params)
     packet new_msg(msg_header{{id_of_item<P, S>, 0}, 128, 0});
     detail::encode<signature>(new_msg, std::forward<Cs>(params)...);
     session.communicator.send(new_msg);
+}
+
+template <c::protocol P, c::signal_name S, typename... Cs>
+requires detail::is_in_protocol<P, S> && detail::is_convertible_signature<P, S, Cs...>
+auto dispatch_signal(Cs&&... params)
+{
+    using signature = detail::get_signature<P, S>;
+    packet new_msg(msg_header{{id_of_item<P, S>, 0}, 128, 0});
+    detail::encode<signature>(new_msg, std::forward<Cs>(params)...);
+    new_msg.commit_to_header();
+    return [msg_to_dispatch = std::move(new_msg)](server_session& session) { session.communicator.send(&msg_to_dispatch.header); };
 }
 
 }  // namespace tiny_ipc

@@ -51,6 +51,7 @@ struct message_comm
         return detail::message_parser(&received_message, {receive_payload.data(), receive_payload.size()});
     }
     inline void send(packet& message) noexcept { ::sendmsg(socket.native_handle(), message.commit_to_header(), MSG_NOSIGNAL); }
+    inline void send(msghdr const* hdr) noexcept { ::sendmsg(socket.native_handle(), hdr, MSG_NOSIGNAL); }
 };
 
 }  // namespace tiny_ipc::detail

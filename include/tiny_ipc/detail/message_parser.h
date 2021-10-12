@@ -6,9 +6,12 @@
 #define TINY_IPC_DETAIL_MESSAGE_PARSER_H
 
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <span>
+#include <cstring>
 #include <vector>
+#include <optional>
 #include <tiny_ipc/fd.h>
 
 namespace tiny_ipc::detail

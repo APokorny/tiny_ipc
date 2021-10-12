@@ -7,12 +7,13 @@
 
 #include <tiny_ipc/detail/message_parser.h>
 #include <tiny_ipc/detail/serialization_utilities.h>
+#include <limits>
 
 namespace tiny_ipc
 {
 // Overload this funcion as needed
 template <typename T>
-requires is_trivially_serializable_v<T> T decode_item(detail::message_parser& msg, type<T>)
+requires is_trivially_serializable_v<T> inline T decode_item(detail::message_parser& msg, type<T>)
 {
     // alternatively if we guarantee alignment we could decode by casting - but then there is a dependency on ABI
     T    ret;
@@ -21,7 +22,7 @@ requires is_trivially_serializable_v<T> T decode_item(detail::message_parser& ms
     return ret;
 }
 
-ucred decode_item(detail::message_parser& msg, type<ucred>)
+inline ucred decode_item(detail::message_parser& msg, type<ucred>)
 {
     auto creds = msg.get_cred();
     if (creds)
@@ -32,10 +33,10 @@ ucred decode_item(detail::message_parser& msg, type<ucred>)
           std::numeric_limits<gid_t>::max()};
 }
 
-fd decode_item(detail::message_parser& msg, type<fd>) { return msg.consume_fd(); }
+inline fd decode_item(detail::message_parser& msg, type<fd>) { return msg.consume_fd(); }
 
 template <typename T>
-std::vector<T> decode_item(detail::message_parser& msg, type<std::vector<T>>)
+inline std::vector<T> decode_item(detail::message_parser& msg, type<std::vector<T>>)
 {
     auto           vec_size = decode_item(msg, type<uint16_t>{});
     std::vector<T> ret;
@@ -44,19 +45,19 @@ std::vector<T> decode_item(detail::message_parser& msg, type<std::vector<T>>)
     return ret;
 }
 
-std::string decode_item(detail::message_parser& msg, type<std::string>)
+inline std::string decode_item(detail::message_parser& msg, type<std::string>)
 {
     auto length = decode_item(msg, type<uint16_t>{});
     return std::string(msg.consume_message(length).data(), length);
 }
 
-std::string_view decode_item(detail::message_parser& msg, type<std::string_view>)
+inline std::string_view decode_item(detail::message_parser& msg, type<std::string_view>)
 {
     auto length = decode_item(msg, type<uint16_t>{});
     return std::string_view(msg.consume_message(length).data(), length);
 }
 
-char const* decode_item(detail::message_parser& msg, type<char const*>)
+inline char const* decode_item(detail::message_parser& msg, type<char const*>)
 {
     auto length = decode_item(msg, type<uint16_t>{});
     return msg.consume_message(length).data();
@@ -66,7 +67,7 @@ namespace detail
 namespace impl
 {
 template <typename... ListItems, typename F>
-decltype(std::declval<F>()(std::declval<ListItems>()...)) decode_items(detail::message_parser& msg, kvasir::mpl::list<ListItems...>,
+inline decltype(std::declval<F>()(std::declval<ListItems>()...)) decode_items(detail::message_parser& msg, kvasir::mpl::list<ListItems...>,
                                                                        F&&                     fun)
 {
     return fun(decode_item(msg, type<ListItems>{})...);
@@ -74,7 +75,7 @@ decltype(std::declval<F>()(std::declval<ListItems>()...)) decode_items(detail::m
 }  // namespace impl
 
 template <typename Signature, typename F>
-auto decode(detail::message_parser& msg, F&& fun)
+inline auto decode(detail::message_parser& msg, F&& fun)
 {
     using signature_list = typename impl::to_list<Signature>::type;
     return impl::decode_items(msg, signature_list{}, std::forward<F>(fun));

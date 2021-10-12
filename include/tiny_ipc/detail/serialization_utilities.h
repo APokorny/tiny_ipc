@@ -4,10 +4,17 @@
 
 #ifndef TINY_IPC_DETAIL_SERIALIZATION_UTILITIES_H_INCLUDED
 #define TINY_IPC_DETAIL_SERIALIZATION_UTILITIES_H_INCLUDED
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <kvasir/mpl/types/list.hpp>
 #include <type_traits>
 #include <span>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <tiny_ipc/fd.h>
+#include <tiny_ipc/proto_def.h>
 
 namespace tiny_ipc
 {
