@@ -21,6 +21,18 @@ The clients can invoke those methods. The server can send unsolicited messages t
 namespace ti = tiny_ipc;
 ```
 
+### Interface and version
+
+All methods and signals are grouped via interfaces. Every interface has a name and version. 
+Name and version combined have to be unique within one protocol. 
+```
+constexpr ti::protocol example_protocol( 
+    ti::interface("calculator"_i, "1.0"_v,
+      ti::method<int(std::string, int, std::vector<float>)>("calculate"_m),
+      ti::signal<void(std::string, std::string)>("important_news"_s))
+    );
+```
+ 
 ### Method
 
 A Method can have arbitrary C++ types as parameters and must have a unique name. 
@@ -183,10 +195,23 @@ inline CustomFD decode_item(detail::message_parser& msg, type<CustomFD>) { retur
 
 But note that the file descriptor needs to be duplicated with dup then, because `fd::~fd` would close it.
 
+### Maintaining compatibility with Interfaces and Versions
+
+The encoding scheme is done for each interface individually. Each method and signal is enumerated. 
+To allow making changes to an interface another interface version can be added. 
+Within the new version different new and different method and signals can be defined.
 
 ## Usage
 
 See chat client and server for reference in examples folder.
+
+## Exposing the protocol to other languages
+
+### Expose via C Interface and type mapping
+
+
+
+### Expose encoding scheme by generating stubs
 
 ## Dependencies
 
