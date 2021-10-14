@@ -16,7 +16,7 @@ with versions, that may offer methods to invoke, and optionally send back reply 
 The clients can invoke those methods. The server can send unsolicited messages to the client
 - so called signals - not to be confused with process signals. 
 
-```
+```c++
 // throughout this documentation we use the short form namespace:
 namespace ti = tiny_ipc;
 ```
@@ -25,7 +25,7 @@ namespace ti = tiny_ipc;
 
 All methods and signals are grouped via interfaces. Every interface has a name and version. 
 Name and version combined have to be unique within one protocol. 
-```
+```c++
 constexpr ti::protocol example_protocol( 
     ti::interface("calculator"_i, "1.0"_v,
       ti::method<int(std::string, int, std::vector<float>)>("calculate"_m),
@@ -35,10 +35,10 @@ constexpr ti::protocol example_protocol(
  
 ### Method
 
-A Method can have arbitrary C++ types as parameters and must have a unique name. 
+A Method can have arbitrary c++ types as parameters and must have a unique name. 
 A method is declared like this:
 
-```
+```c++
 constexpr ti::protocol example_protocol( 
     /* ... */
     ti::interface("calculator"_i, "1.0"_v,
@@ -51,10 +51,10 @@ using calc_server = decltype(example_protocol);
 ```
 
 The method declaration uses a compile time user defined literal with the suffix `_m`
-and needs a C++ function signature for encoding and decoding to work. So in the given
+and needs a c++ function signature for encoding and decoding to work. So in the given
 exampe `calculate` needs three parameters to work:
 
-```
+```c++
 
 // declare the interface and version to use
 constexpr ti::interface_id calc("calculator"_i, "1.0"_v);
@@ -79,11 +79,11 @@ the server replied. So yes the callback is copied and the copy will outlive this
 
 ### Signal
 
-Just like methods a Signal can have arbitrary C++ types as parameters and must have 
+Just like methods a Signal can have arbitrary c++ types as parameters and must have 
 a unique name within the interface, but there is no return value transported.
 A signal is declared like this:
 
-```
+```c++
 constexpr auto example_protocol = ti::protocol( 
     /* ... */
     ti::interface("calculator"_i, "1.0"_v,
@@ -94,7 +94,7 @@ constexpr auto example_protocol = ti::protocol(
 ```
 
 The signal declaration uses a compile time user defined literal with the suffix `_s`
-and needs a C++ function signature for encoding and decoding to work.
+and needs a c++ function signature for encoding and decoding to work.
 
 ### Parameters and Return Values
 
@@ -102,7 +102,7 @@ The library will encode all trivial parameters directly, by just copying the par
 into the message. This can be easily expanded to user defined types by specializing the
 type trait `tiny_ipc::is_trivially_serializable`. 
 By default it is implemented like this:
-```
+```c++
 namespace tiny_ipc
 {
 template <typename T>
@@ -112,7 +112,7 @@ struct is_trivially_serializable : std::is_trivially_copyable<T>
 }
 ```
 To disable the plain copy of a type a specialization is needed: 
-```
+```c++
 namespace tiny_ipc
 {
 template <>
@@ -122,7 +122,7 @@ struct is_trivially_serializable<YourType> : std::false_type {};
 Any unknown type that is not trivially copyable will require a custom overload
 of `encode_item` and `decode_item`:
 
-```
+```c++
 namespace tiny_ipc
 {
 void encode_item(packet& encoded_msg, type<YourType>, YourType const& param)
@@ -139,7 +139,7 @@ character arrays and the new `std::string_view` without going through a
 
 This is achieved via multiple overloads of `encode`:
 
-```
+```c++
 namespace tiny_ipc
 {
 void encode_item(packet& encoded_msg, type<std::string>, std::string const& param)
@@ -168,7 +168,7 @@ This is a detail handled by the library, so users do not have to take this into 
 For file descriptors it is slightly different, because they are handled as integers in the linux 
 kernel and posix API. So it is necessary to use a distinct type in the signature. Therefor the 
 library provides the structure `tiny_ipc::fd`:
-```
+```c++
 struct weak_ref
 {
     int file_descriptor;
@@ -189,7 +189,7 @@ struct fd
 A user may use different user defined types, but then has to provide a custom `encode_item` and `decode_item`
 overload that treats the type as file descriptor:
 
-```
+```c++
 inline CustomFD decode_item(detail::message_parser& msg, type<CustomFD>) { return CustomFD{msg.consume_fd()}; }
 ```
 
@@ -208,7 +208,7 @@ See chat client and server for reference in examples folder.
 ### How to write a server
 
 Some asio boilerplate is needed:
-```
+```c++
 #include <tiny_ipc/server_session.h>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/local/basic_endpoint.hpp>
@@ -225,7 +225,7 @@ The acceptor has the reponsibility to handle incoming connection attempts.
 
 For each successfull connection attempt we will need a way to store the sockets and the library 
 structure `server_session` to communicate with the client.
-```
+```c++
     struct session_handler
     {
         boost::asio::local::stream_protocol::socket socket;
@@ -243,7 +243,7 @@ of `async_accept` is a continuation lambda that will only be executed within the
 
 Oh and we are using `unique_ptr` in this example becaue we want the references to `session_handler` remain stable 
 even after vector resize operations.
-```
+```c++
 void accept_connection()
 {
     acceptor.async_accept(end_point,
@@ -258,7 +258,7 @@ void accept_connection()
 ```
 
 Now finally the interesting part the actual communication with the client 
-```
+```c++
 void async_read(session_handler& c) {
     tiny_ipc::async_dispatch_messages<your_protocol>(  //
             c.session, //
