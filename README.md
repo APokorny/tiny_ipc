@@ -169,7 +169,7 @@ For file descriptors it is slightly different, because they are handled as integ
 kernel and posix API. So it is necessary to use a distinct type in the signature. Therefor the 
 library provides the structure `tiny_ipc::fd`:
 ```
-struct weak_ref // marks
+struct weak_ref
 {
     int file_descriptor;
 };
@@ -177,10 +177,10 @@ struct weak_ref // marks
 struct fd
 {
     explicit fd(int file_handle); // will take ownership and close
-    explicit fd(weak_ref do_not_close)
-    fd(fd const&)                = default;
-    fd&                  operator=(fd const&) = default;
-    inline               operator int() const { return file_descriptor ? *file_descriptor : -1; }
+    explicit fd(weak_ref do_not_close) // will not take ownership
+    fd(fd const&)l
+    fd&                  operator=(fd const&);
+    inline               operator int() const;
     std::shared_ptr<int> file_descriptor;
 };
 }
@@ -205,10 +205,104 @@ Within the new version different new and different method and signals can be def
 
 See chat client and server for reference in examples folder.
 
+### How to write a server
+
+Some asio boilerplate is needed:
+```
+#include <tiny_ipc/server_session.h>
+#include <boost/asio/local/stream_protocol.hpp>
+#include <boost/asio/local/basic_endpoint.hpp>
+
+//...
+    ::unlink(path_to_uds);
+    boost::asio::io_context                                                 io_ctx;
+    boost::asio::local::basic_endpoint<boost::asio::local::stream_protocol> end_point(path_to_uds);
+    boost::asio::local::stream_protocol::acceptor                           acceptor(io_ctx, end_point);
+```
+
+This creates removes a potential stale unix domain socket file and creates a new one.
+The acceptor has the reponsibility to handle incoming connection attempts.
+
+For each successfull connection attempt we will need a way to store the sockets and the library 
+structure `server_session` to communicate with the client.
+```
+    struct session_handler
+    {
+        boost::asio::local::stream_protocol::socket socket;
+        tiny_ipc::server_session                    session;
+        optional<ucred>                             creds;
+        explicit session_handler(boost::asio::local::stream_protocol::socket&& s) : socket{std::move(s)}, session(socket) {}
+    };
+    std::vector<std::unique_ptr<session_handler>> sessions;
+```
+
+Next up we need to configure the accept handling, the accept signal on the end point will trigger asynchronously once for every
+call to `async_accept`, after handling the connection attempt by adding the session structure and triggering the read 
+we need to continue waiting for further clients to conenct. This looks recursive but isn't since the second parameter
+of `async_accept` is a continuation lambda that will only be executed within the `io_context` thread after a connect happened.
+
+Oh and we are using `unique_ptr` in this example becaue we want the references to `session_handler` remain stable 
+even after vector resize operations.
+```
+void accept_connection()
+{
+    acceptor.async_accept(end_point,
+        [this](boost::system::error_code ec, boost::asio::local::stream_protocol::socket other)
+        {
+            sessions.push_back(std::make_unique<session_handler>(std::move(other));
+
+            async_read(*sessions.back());
+            accept_connections();
+        });
+}
+```
+
+Now finally the interesting part the actual communication with the client 
+```
+void async_read(session_handler& c) {
+    tiny_ipc::async_dispatch_messages<your_protocol>(  //
+            c.session, //
+
+            tiny_ipc::methods_of("your_main_interface"_i, "1.0"_v,
+
+                "connect"_m = [this, c](::ucred cred, std::string const& client_name) -> bool
+                {
+                    if (this->user_manager.test_user(cred))
+                    {
+                        user_manager.register_user(cred, client_name);
+                        c.creds = cred;
+                        return true;
+                    }
+                    else
+                    {
+                        // TODO add disconnect handling.
+                        return false;
+                    }
+                },
+
+                "some_other_method"_m = [this, &c](std::string const& data)
+                {
+                   if(!c.creds) // invalid request 
+                     return;
+                   service_manager->perform_something(data);
+                },
+              
+            tiny_ipc::methods_of("your_main_interface"_i, "1.2"_v,
+                "extension_method"_m = [this](int flags, std::string const& data)
+                {
+                   service_manager->extended_action(flags, data);
+                }  //
+                ));
+    }
+```
+
+TODO error and explicit disconnect handling is still mssing..
+
+### How to write a client
+
 ## Exposing the protocol to other languages
 
 ### Expose via C Interface and type mapping
-
 
 
 ### Expose encoding scheme by generating stubs
