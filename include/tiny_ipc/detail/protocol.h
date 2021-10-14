@@ -6,12 +6,28 @@
 #define TINY_IPC_DETAIL_PROTOCOL_H_INCLUDED
 
 #include <tiny_ipc/proto_def.h>
+#include <kvasir/mpl/algorithm/all.hpp>
 #include <kvasir/mpl/algorithm/find_if.hpp>
 #include <kvasir/mpl/sequence/size.hpp>
 #include <kvasir/mpl/sequence/front.hpp>
 #include <kvasir/mpl/types/bool.hpp>
 namespace tiny_ipc
 {
+struct msg_id
+{
+    uint32_t interface;
+    uint16_t id;
+    uint16_t cookie;
+    auto     operator<=>(msg_id const&) const = default;
+};
+struct msg_header
+{
+    msg_id   id;
+    uint16_t payload;
+    uint16_t control;
+    auto     operator<=>(msg_header const&) const = default;
+};
+namespace c = concepts;
 namespace detail
 {
 template <c::element_name N>
@@ -29,59 +45,53 @@ struct is_named_element
     struct f_impl<tiny_ipc::impl::signal<N, Sig>> : kvasir::mpl::true_
     {
     };
+    template <typename V, typename... Es>
+    struct f_impl<tiny_ipc::interface<N, V, Es...>> : kvasir::mpl::true_
+    {
+    };
     template <typename Item>
     using f = f_impl<Item>;
 };
 
-template <c::protocol P, c::element_name N>
-constexpr bool is_in_protocol =
-    kvasir::mpl::call<kvasir::mpl::unpack<kvasir::mpl::find_if<is_named_element<N>, kvasir::mpl::size<>>>, P>::value != 0;
-
-template <c::protocol P, c::element_name N>
-using get_signature = typename kvasir::mpl::call<kvasir::mpl::unpack<kvasir::mpl::find_if<is_named_element<N>, kvasir::mpl::front<>>>, P>;
-
-template <c::protocol P, c::element_name N, typename... Args>
-constexpr bool is_convertible_signature = true;
-}  // namespace detail
-
-namespace concepts
+template <c::interface_name N, c::version V>
+struct is_interface_version
 {
-template <typename T>
-struct fu
-{
-};
-
-template <>
-struct fu<void()>
-{
-    inline constexpr void operator()() const noexcept {};
-};
-template <typename... Ts>
-struct fu<void(Ts...)>
-{
-    inline constexpr void operator()(Ts...) const noexcept {};
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 10
-    template <typename... Us>
-    inline constexpr void operator()(Us...) const noexcept {};
-#endif
-};
-
-template <typename R, typename... Ts>
-struct fu<R(Ts...)>
-{
-    inline constexpr R operator()(Ts...) const noexcept { return R{}; };
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 10
-    template <typename... Us>
-    inline constexpr R operator()(Us...) const noexcept
+    template <typename Item>
+    struct f_impl : kvasir::mpl::false_
     {
-        return R{};
     };
-#endif
+    template <typename... Es>
+    struct f_impl<tiny_ipc::interface<N, V, Es...>> : kvasir::mpl::true_
+    {
+    };
+    template <typename Item>
+    using f = f_impl<Item>;
 };
-template <typename P, typename N, typename... Args>
-concept valid_invocation =
-    detail::is_in_protocol<P, N> && std::is_invocable_v<fu<typename detail::get_signature<P, N>::signature>, Args...>;
-}  // namespace concepts
+
+template <c::protocol P, c::interface_id I, c::element_name N>
+constexpr bool is_in_protocol =
+    kvasir::mpl::call<
+        kvasir::mpl::unpack<kvasir::mpl::find_if<is_interface_version<typename I::name, typename I::version>,
+                                                 kvasir::mpl::unpack<kvasir::mpl::find_if<is_named_element<N>, kvasir::mpl::size<>>>>>,
+        P>::value != 0;
+
+template <c::protocol P, c::interface_id I>
+struct is_in_proto
+{
+    template <typename Name>
+    using f = kvasir::mpl::call<
+        kvasir::mpl::unpack<kvasir::mpl::find_if<is_interface_version<typename I::name, typename I::version>,
+                                                 kvasir::mpl::unpack<kvasir::mpl::find_if<is_named_element<Name>, kvasir::mpl::size<>>>>>,
+        P>;
+};
+
+template <c::protocol P, c::interface_id I, typename Names>
+constexpr bool are_in_protocol = kvasir::mpl::call<kvasir::mpl::unpack<kvasir::mpl::all<is_in_proto<P, I>>>, Names>::value != 0;
+
+template <c::interface I, c::element_name N>
+using get_signature = typename kvasir::mpl::call<kvasir::mpl::unpack<kvasir::mpl::find_if<is_named_element<N>, kvasir::mpl::front<>>>, I>;
+
+}  // namespace detail
 }  // namespace tiny_ipc
 
 #endif

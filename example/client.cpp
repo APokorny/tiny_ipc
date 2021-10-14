@@ -13,19 +13,6 @@
 char chat_input_buffer[1024];
 
 using namespace tiny_ipc::literals;
-void setup_signal_handler(tiny_ipc::client& c, boost::asio::local::stream_protocol::socket& local)
-{
-    local.async_wait(boost::asio::socket_base::wait_read,  //
-                     create_async_message_handler<chat::chat_protocol>(
-                         c, "text_added"_s =
-                                [&c, &local](std::string const& text)
-                            {
-                                std::puts(text.c_str());
-
-                                // contintue processing:
-                                setup_signal_handler(c, local);
-                            }));
-}
 
 int main(int argc, char** argv)
 {
@@ -43,7 +30,8 @@ int main(int argc, char** argv)
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work = boost::asio::make_work_guard(io_ctx);
     // connecting with credentials:
     execute_method<chat::chat_protocol>(
-        "connect"_m, my_client, [](bool result) { std::cout << "Connected :" << result << "\n"; }, ::ucred{});
+        tiny_ipc::interface_id("chat"_i, "1.0"_v), "connect"_m, my_client,
+        [](bool result) { std::cout << "Connected :" << result << "\n"; }, ::ucred{});
 
     boost::asio::posix::stream_descriptor input_stream(io_ctx, STDIN_FILENO);
     // assume that you already defined your read_handler ...
@@ -51,14 +39,23 @@ int main(int argc, char** argv)
 
     read_handler = [&read_handler, &my_client, &input_stream](boost::system::error_code ec, std::size_t bytes_transfered)
     {
+        std::cout << "READ SOMETHING " << bytes_transfered << " " << std::string_view(chat_input_buffer, bytes_transfered) << std::endl;
         execute_method<chat::chat_protocol>(
-            "send"_m, my_client, []() {}, std::string_view(chat_input_buffer, bytes_transfered));
+            tiny_ipc::interface_id("chat"_i, "1.0"_v), "send"_m, my_client, []() {}, std::string_view(chat_input_buffer, bytes_transfered));
         async_read(input_stream, boost::asio::buffer(chat_input_buffer), boost::asio::transfer_at_least(1), read_handler);
     };
 
     async_read(input_stream, boost::asio::buffer(chat_input_buffer), boost::asio::transfer_at_least(1), read_handler);
 
-    setup_signal_handler(my_client, local);
+    std::cout << "setup system signal" << std::endl;
+    async_dispatch_messages<chat::chat_protocol>(my_client, tiny_ipc::signals_of(
+                                                                "chat"_i, "1.0"_v,
+                                                                "text_added"_s =
+                                                                    [](std::string const& text)
+                                                                {
+                                                                    std::cout << "received SOMETHING " << text << std::endl;
+                                                                    std::puts(text.c_str());
+                                                                }));
 
     io_ctx.run();
 }

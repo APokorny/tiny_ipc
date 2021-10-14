@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <tiny_ipc/detail/protocol.h>
 #include <utility>
 #include <span>
 #include <cstring>
@@ -19,19 +20,6 @@
 
 namespace tiny_ipc
 {
-struct msg_id
-{
-    uint16_t id;
-    uint16_t cookie;
-    auto     operator<=>(msg_id const&) const = default;
-};
-struct msg_header
-{
-    msg_id   id;
-    uint16_t payload;
-    uint16_t control;
-    auto     operator<=>(msg_header const&) const = default;
-};
 struct packet
 {
     bool                           creds{false};

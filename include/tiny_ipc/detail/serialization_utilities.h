@@ -11,6 +11,7 @@
 #include <kvasir/mpl/types/list.hpp>
 #include <type_traits>
 #include <span>
+#include <string_view>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <tiny_ipc/fd.h>

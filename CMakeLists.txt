@@ -18,6 +18,7 @@ find_package(Threads)
 add_library(tiny_ipc INTERFACE)
 add_library(tiny_ipc::tiny_ipc ALIAS tiny_ipc)
 target_compile_features(tiny_ipc INTERFACE cxx_std_20)
+target_compile_definitions(tiny_ipc INTERFACE BOOST_ASIO_HAS_STD_INVOKE_RESULT=1)
 target_link_libraries(tiny_ipc INTERFACE kvasir_mpl tiny_tuple::tiny_tuple Boost::boost)
 target_include_directories(tiny_ipc INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

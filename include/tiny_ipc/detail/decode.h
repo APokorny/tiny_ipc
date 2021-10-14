@@ -8,6 +8,7 @@
 #include <tiny_ipc/detail/message_parser.h>
 #include <tiny_ipc/detail/serialization_utilities.h>
 #include <limits>
+#include <string>
 
 namespace tiny_ipc
 {

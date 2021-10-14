@@ -51,7 +51,7 @@ void encode_item(packet& encoded_msg, type<fd>, T&& param)
     encoded_msg.add_fd(std::forward<fd>(param));
 }
 
-void encode_item(packet& encoded_msg, type<std::string>, std::string const& param)
+inline void encode_item(packet& encoded_msg, type<std::string>, std::string const& param)
 {
     auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
     uint16_t length = param.length();
@@ -59,7 +59,7 @@ void encode_item(packet& encoded_msg, type<std::string>, std::string const& para
     mempcpy(part.data() + sizeof(length), param.data(), length);
 }
 
-void encode_item(packet& encoded_msg, type<std::string>, char const* param)
+inline void encode_item(packet& encoded_msg, type<std::string>, char const* param)
 {
     uint16_t length = strlen(param);
     auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + length);
@@ -67,7 +67,7 @@ void encode_item(packet& encoded_msg, type<std::string>, char const* param)
     mempcpy(part.data() + sizeof(length), param, length);
 }
 
-void encode_item(packet& encoded_msg, type<std::string>, std::string_view const& param)
+inline void encode_item(packet& encoded_msg, type<std::string>, std::string_view const& param)
 {
     auto     part   = encoded_msg.reserve_data(sizeof(uint16_t) + param.length());
     uint16_t length = param.length();

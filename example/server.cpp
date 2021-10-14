@@ -25,27 +25,21 @@ struct chat_server
     chat_server(boost::asio::io_context& ctx, std::string const& path) : io_ctx(ctx), local(path.c_str()), acceptor(io_ctx, local) {}
     void async_read(session_handler& c)
     {
-        c.socket.async_wait(  //
-            boost::asio::socket_base::wait_read,
-            create_async_message_handler<chat::chat_protocol>(  //
-                c.session,
-                "connect"_m = [&c, this](::ucred cred) -> bool
-                {
-
-                    // continue reacting to messages:
-                    async_read(c);
-                    return true;
-                },
-                "send"_m =
-                    [&c, this](std::string const& text)
-                {
-                    std::cout << "<CHAT>:";
-                    std::puts(text.c_str());
-
-                    // continue reacting to messages:
-                    async_read(c);
-                }  //
-                ));
+        tiny_ipc::async_dispatch_messages<chat::chat_protocol>(  //
+            c.session, tiny_ipc::methods_of(
+                           "chat"_i, "1.0"_v,
+                           "connect"_m = [this](::ucred cred) -> bool
+                           {
+                               std::cout << "new user connected:" << cred.uid << " G:" << cred.gid << " P:" << cred.pid << std::endl;
+                               return true;
+                           },
+                           "send"_m =
+                               [this](std::string const& text)
+                           {
+                               std::cout << "<CHAT>:";
+                               std::puts(text.c_str());
+                           }  //
+                           ));
     }
     void accept_connections()
     {
