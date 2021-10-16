@@ -25,7 +25,8 @@ int main(int argc, char** argv)
     local.connect(ep);
 
     std::cout << "connected " << std::endl;
-    auto my_client = tiny_ipc::client(local);
+    auto my_client =
+        tiny_ipc::client(local, [](boost::system::error_code ec, tiny_ipc::client&) { std::cout << "Error " << ec << std::endl; });
 
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work = boost::asio::make_work_guard(io_ctx);
     // connecting with credentials:

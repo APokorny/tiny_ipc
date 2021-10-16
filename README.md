@@ -231,9 +231,11 @@ structure `server_session` to communicate with the client.
         boost::asio::local::stream_protocol::socket socket;
         tiny_ipc::server_session                    session;
         optional<ucred>                             creds;
-        explicit session_handler(boost::asio::local::stream_protocol::socket&& s) : socket{std::move(s)}, session(socket) {}
+        template<typename tiny_ipc::concepts::session_error_handler H>
+        explicit session_handler(boost::asio::local::stream_protocol::socket&& s, H && error)
+            : socket{std::move(s)}, session(socket, std::forward<H>(error)) {}
     };
-    std::vector<std::unique_ptr<session_handler>> sessions;
+    std::vector<std::shared_ptr<session_handler>> sessions;
 ```
 
 Next up we need to configure the accept handling, the accept signal on the end point will trigger asynchronously once for every
@@ -241,62 +243,89 @@ call to `async_accept`, after handling the connection attempt by adding the sess
 we need to continue waiting for further clients to conenct. This looks recursive but isn't since the second parameter
 of `async_accept` is a continuation lambda that will only be executed within the `io_context` thread after a connect happened.
 
-Oh and we are using `unique_ptr` in this example becaue we want the references to `session_handler` remain stable 
-even after vector resize operations.
+Oh and we are using `shared_ptr` in this example becaue we want the references to `session_handler` remain stable 
+even after vector resize operations. Additionally we have to ensure that the objects referred to by continuation functions 
+outlive those functions. Consider that the connection is terminated either from the client or within an message handler, meanwhile
+an `async_wait` with a reference to our session object still resides in the `boost::asio::io_context`. To avoid dangling references
+or simply use after free we use `shared_ptr` here, and store a `shared_ptr` inside the continuations. `close` or `cancel` operations
+on the socket will eventually remove outstanding continuaions but untill then the session object needs to stay alive.
 ```c++
 void accept_connection()
 {
     acceptor.async_accept(end_point,
         [this](boost::system::error_code ec, boost::asio::local::stream_protocol::socket other)
         {
-            sessions.push_back(std::make_unique<session_handler>(std::move(other));
+            if(ec)
+            {
+                // this branch is usually hit when the acceptor is disabled during shutdown.
+            }
+            else 
+            {
+                sessions.push_back(
+                    std::make_shared<session_handler>(std::move(other), //
+                    [](boost::system::error_code ec, tiny_ipc::servier_session &)
+                    {
+                        sessions.erase(                                     //
+                            std::remove_if(begin(sessions), end(sessions),  //
+                                [&s](auto const& item) { return (&s == &item->session); }),
+                            end(sessions));
+                    }
+                    );
 
-            async_read(*sessions.back());
-            accept_connections();
+                async_read(sessions.back());
+                accept_connections();
+            }
         });
 }
 ```
+The library requires the user to provide a callback to be executed on errors. Errors in this case are most commonly disconnect events. 
+So in the error handler above we use the reference to the session object to remove any pending references within the server. 
+Still after this code executes the `session_handler` might still be alive after the next execution of the `io_context`, when all 
+outstanding async operations have been cleared.
 
-Now finally the interesting part the actual communication with the client 
+Now finally the interesting part the actual communication with the client. 
+The code below registers method handlers in relation to the versioend interfaces.
+Those could of course be declared as std::function objects or mapped to real C++
+interfaces. 
 ```c++
-void async_read(session_handler& c) {
+void async_read(std::shared_ptr<session_handler> const& c) 
+{
     tiny_ipc::async_dispatch_messages<your_protocol>(  //
-            c.session, //
+        c->session, //
 
-            tiny_ipc::methods_of("your_main_interface"_i, "1.0"_v,
+        tiny_ipc::methods_of("your_main_interface"_i, "1.0"_v,
 
-                "connect"_m = [this, c](::ucred cred, std::string const& client_name) -> bool
+            "connect"_m = [this, c](::ucred cred, std::string const& client_name) -> bool
+            {
+                if (this->user_manager.test_user(cred))
                 {
-                    if (this->user_manager.test_user(cred))
-                    {
-                        user_manager.register_user(cred, client_name);
-                        c.creds = cred;
-                        return true;
-                    }
-                    else
-                    {
-                        // TODO add disconnect handling.
-                        return false;
-                    }
-                },
-
-                "some_other_method"_m = [this, &c](std::string const& data)
+                    user_manager.register_user(cred, client_name);
+                    c->creds = cred;
+                    return true;
+                }
+                else
                 {
-                   if(!c.creds) // invalid request 
+                    c->session.close();
+                    return false;
+                }
+            },
+
+            "some_other_method"_m = [this, c](std::string const& data)
+            {
+                if(!c->creds) // invalid request 
                      return;
-                   service_manager->perform_something(data);
-                },
+                service_manager->perform_something(data);
+            }),
               
-            tiny_ipc::methods_of("your_main_interface"_i, "1.2"_v,
-                "extension_method"_m = [this](int flags, std::string const& data)
-                {
-                   service_manager->extended_action(flags, data);
-                }  //
-                ));
+        tiny_ipc::methods_of("your_main_interface"_i, "1.2"_v,
+            "extension_method"_m = [this](int flags, std::string const& data)
+            {
+               service_manager->extended_action(flags, data);
+            }  //
+            ));
     }
 ```
 
-TODO error and explicit disconnect handling is still mssing..
 
 ### How to write a client
 

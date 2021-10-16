@@ -20,6 +20,18 @@
 
 namespace tiny_ipc
 {
+struct client;
+
+namespace concepts
+{
+template <typename F>
+concept client_error_handler = requires
+{
+    std::declval<F>()(std::declval<boost::system::error_code>(), std::declval<client&>());
+};
+}  // namespace concepts
+
+
 struct client
 {
     detail::message_comm communicator;
@@ -32,7 +44,16 @@ struct client
     };
     std::vector<active_request> active_requests;
 
-    explicit client(boost::asio::local::stream_protocol::socket& s) : communicator{s} {}
+    template <c::client_error_handler H>
+    explicit client(boost::asio::local::stream_protocol::socket& s, H on_error) : communicator{s}
+    {
+        communicator.socket.async_wait(boost::asio::socket_base::wait_error,
+                                       [this, on_error](boost::system::error_code ec) mutable
+                                       {
+                                           communicator.socket.close();
+                                           on_error(ec, *this);
+                                       });
+    }
     uint16_t gen_cookie() { return cookie_generator++; }
 };
 
@@ -41,7 +62,6 @@ requires(detail::are_in_protocol<P, typename std::decay_t<Ts>::id, typename std:
          true) void async_dispatch_messages(client& c, Ts&&... ts)
 {
     auto default_handler = [&c, ts...]() { async_dispatch_messages<P>(c, ts...); };
-
     c.communicator.socket.async_wait(
         boost::asio::socket_base::wait_read,
         [&c, default_handler,

@@ -11,6 +11,9 @@
 #include <kvasir/mpl/sequence/size.hpp>
 #include <kvasir/mpl/sequence/front.hpp>
 #include <kvasir/mpl/types/bool.hpp>
+#include <boost/system/error_code.hpp>
+#include <utility>
+
 namespace tiny_ipc
 {
 struct msg_id

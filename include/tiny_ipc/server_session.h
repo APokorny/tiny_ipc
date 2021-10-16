@@ -25,10 +25,38 @@
 
 namespace tiny_ipc
 {
+struct server_session;
+
+namespace concepts
+{
+template <typename F>
+concept session_error_handler = requires
+{
+    std::declval<F>()(std::declval<boost::system::error_code>(), std::declval<server_session&>());
+};
+}  // namespace concepts
+
 struct server_session
 {
     detail::message_comm communicator;
-    explicit server_session(boost::asio::local::stream_protocol::socket& s) : communicator{s} {}
+    template <c::session_error_handler H>
+    explicit server_session(boost::asio::local::stream_protocol::socket& s, H on_error) : communicator{s}
+    {
+        communicator.socket.async_wait(boost::asio::socket_base::wait_error,
+                                       [this, on_error](boost::system::error_code ec) mutable
+                                       {
+                                           boost::system::error_code e;
+                                           communicator.socket.cancel(e);
+                                           communicator.socket.close(e);
+                                           on_error(ec, *this);
+                                       });
+    }
+
+    void close()
+    {
+        communicator.socket.cancel();
+        communicator.socket.close();
+    }
 };
 
 template <c::protocol P, c::method_group... Ts>
@@ -56,7 +84,6 @@ requires(detail::are_in_protocol<P, typename std::decay_t<Ts>::id, typename std:
                 auto msg = s.communicator.peek_and_receive();
 
                 msg_header header = decode_item(msg, type<msg_header>{});
-                std::cout << "Header " << header << "\n";
                 detail::forward_item<P>(  //
                     header.id.interface, header.id.id, interface_dispatcher,
                     [&s, &header, &msg](auto& handler, auto const& signature)
@@ -71,8 +98,8 @@ requires(detail::are_in_protocol<P, typename std::decay_t<Ts>::id, typename std:
                             s.communicator.send(new_msg);
                         }
                     });
+                default_handler();
             }
-            default_handler();
         });
 }
 
