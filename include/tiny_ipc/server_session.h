@@ -105,7 +105,7 @@ requires(detail::are_in_protocol<P, typename std::decay_t<Ts>::id, typename std:
 
 template <c::protocol P, c::interface_id I, c::signal_name S, typename... Cs>
 requires detail::is_in_protocol<P, I, S>
-void send_signal(server_session& session, Cs&&... params)
+void send_signal(I, S, server_session& session, Cs&&... params)
 {
     using iface     = get_interface<P, I>;
     using signature = detail::get_signature<iface, S>;
@@ -116,7 +116,7 @@ void send_signal(server_session& session, Cs&&... params)
 
 template <c::protocol P, c::interface_id I, c::signal_name S, typename... Cs>
 requires detail::is_in_protocol<P, I, S>
-auto dispatch_signal(Cs&&... params)
+auto dispatch_signal(I, S, Cs&&... params)
 {
     using iface     = get_interface<P, I>;
     using signature = detail::get_signature<iface, S>;

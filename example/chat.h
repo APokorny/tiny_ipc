@@ -13,7 +13,7 @@ using namespace ti::literals;
 
 constexpr auto chat = ti::protocol(                         //
     ti::interface("chat"_i, "1.0"_v,                        //
-                  ti::method<bool(::ucred)>("connect"_m),   //
+                  ti::method<bool(::ucred, std::string)>("connect"_m),   //
                   ti::method<void(std::string)>("send"_m),  //
                   ti::signal<void(std::string)>("text_added"_s)));
 

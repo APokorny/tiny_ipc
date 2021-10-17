@@ -22,6 +22,7 @@ struct chat_server
     {
         boost::asio::local::stream_protocol::socket socket;
         tiny_ipc::server_session                    session;
+        std::string                                 name;
         template <tiny_ipc::concepts::session_error_handler H>
         explicit session_handler(boost::asio::local::stream_protocol::socket&& s, H&& h)
             : socket{std::move(s)}, session(socket, std::forward<H>(h))
@@ -44,16 +45,18 @@ struct chat_server
 
             tiny_ipc::methods_of(
                 "chat"_i, "1.0"_v,
-                "connect"_m = [this, c](::ucred cred) -> bool
+                "connect"_m = [this, c](::ucred cred, std::string const& name) -> bool
                 {
-                    std::cout << "new user connected:" << cred.uid << " G:" << cred.gid << " P:" << cred.pid << std::endl;
+                    std::cout << "The user " << name << " connected, (UID: " << cred.uid << " G:" << cred.gid << " P:" << cred.pid << ")\n";
+                    c->name = name;
                     return true;
                 },
                 "send"_m =
                     [this, c](std::string const& text)
                 {
-                    std::cout << "<CHAT>:";
-                    std::puts(text.c_str());
+                    auto msg = c->name + ": " + text;
+                    for (auto& s : sessions)
+                        send_signal<chat::chat_protocol>(tiny_ipc::interface_id("chat"_i, "1.0"_v), "text_added"_s, s->session, msg);
                 }  //
                 ));
     }
@@ -65,7 +68,6 @@ struct chat_server
                                   if (ec) { std::cout << "shutting down \n"; }
                                   else
                                   {
-                                      std::cout << "async connections\n";
                                       sessions.emplace_back(std::make_shared<session_handler>(
                                           std::move(other),
                                           [this](boost::system::error_code ec, tiny_ipc::server_session& s) mutable
@@ -74,7 +76,6 @@ struct chat_server
                                                   std::remove_if(begin(sessions), end(sessions),  //
                                                                  [&s](auto const& item) { return (&s == &item->session); }),
                                                   end(sessions));
-                                              std::cout << "error " << ec << "\n";
                                           }));
 
                                       async_read(sessions.back());
@@ -96,7 +97,6 @@ int main(int argc, char** argv)
     chat_server server(io_ctx, argv[1]);
     server.start();
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work = boost::asio::make_work_guard(io_ctx);
-    std::cout << "herer\n ";
     signals.async_wait(
         [&](boost::system::error_code ec, int sig)
         {
@@ -105,5 +105,4 @@ int main(int argc, char** argv)
             server.clear_sessions();
         });
     io_ctx.run();
-    std::cout << "there \n ";
 }
