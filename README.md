@@ -60,9 +60,9 @@ exampe `calculate` needs three parameters to work:
 constexpr ti::interface_id calc("calculator"_i, "1.0"_v);
 
 ti::execute_method<calc_server>(calc, "calculate"_m, connection, "example string", 4, std::vector<float>(1.0f,14.0f,123.0f), 
-    [](int reply_value){
-        std::cout << "The result is: " << reply_value << "\n";
-    });
+  [](int reply_value){
+    std::cout << "The result is: " << reply_value << "\n";
+  });
 
 ```
 
@@ -85,11 +85,11 @@ A signal is declared like this:
 
 ```c++
 constexpr auto example_protocol = ti::protocol( 
-    /* ... */
-    ti::interface("calculator"_i, "1.0"_v,
-      ti::signal<void(std::string, std::string)>("important_news"_s),
-    /* ... */
-    );
+  /* ... */
+  ti::interface("calculator"_i, "1.0"_v,
+  ti::signal<void(std::string, std::string)>("important_news"_s),
+  /* ... */
+  );
 }
 ```
 
@@ -171,17 +171,17 @@ library provides the structure `tiny_ipc::fd`:
 ```c++
 struct weak_ref
 {
-    int file_descriptor;
+  int file_descriptor;
 };
 
 struct fd
 {
-    explicit fd(int file_handle); // will take ownership and close
-    explicit fd(weak_ref do_not_close) // will not take ownership
-    fd(fd const&)l
-    fd&                  operator=(fd const&);
-    inline               operator int() const;
-    std::shared_ptr<int> file_descriptor;
+  explicit fd(int file_handle); // will take ownership and close
+  explicit fd(weak_ref do_not_close) // will not take ownership
+  fd(fd const&)l
+  fd&                  operator=(fd const&);
+  inline               operator int() const;
+  std::shared_ptr<int> file_descriptor;
 };
 }
 ```
@@ -214,10 +214,11 @@ Some asio boilerplate is needed:
 #include <boost/asio/local/basic_endpoint.hpp>
 
 //...
-    ::unlink(path_to_uds);
-    boost::asio::io_context                                                 io_ctx;
-    boost::asio::local::basic_endpoint<boost::asio::local::stream_protocol> end_point(path_to_uds);
-    boost::asio::local::stream_protocol::acceptor                           acceptor(io_ctx, end_point);
+  path_to_uds = "/run/service/admin";
+  ::unlink(path_to_uds);
+  boost::asio::io_context                                                 io_ctx;
+  boost::asio::local::basic_endpoint<boost::asio::local::stream_protocol> end_point(path_to_uds);
+  boost::asio::local::stream_protocol::acceptor                           acceptor(io_ctx, end_point);
 ```
 
 This creates removes a potential stale unix domain socket file and creates a new one.
@@ -226,16 +227,16 @@ The acceptor has the reponsibility to handle incoming connection attempts.
 For each successfull connection attempt we will need a way to store the sockets and the library 
 structure `server_session` to communicate with the client.
 ```c++
-    struct session_handler
-    {
-        boost::asio::local::stream_protocol::socket socket;
-        tiny_ipc::server_session                    session;
-        optional<ucred>                             creds;
-        template<typename tiny_ipc::concepts::session_error_handler H>
-        explicit session_handler(boost::asio::local::stream_protocol::socket&& s, H && error)
-            : socket{std::move(s)}, session(socket, std::forward<H>(error)) {}
-    };
-    std::vector<std::shared_ptr<session_handler>> sessions;
+  struct session_handler
+  {
+    boost::asio::local::stream_protocol::socket socket;
+    tiny_ipc::server_session                    session;
+    optional<ucred>                             creds;
+    template<typename tiny_ipc::concepts::session_error_handler H>
+    explicit session_handler(boost::asio::local::stream_protocol::socket&& s, H && error)
+      : socket{std::move(s)}, session(socket, std::forward<H>(error)) {}
+  };
+  std::vector<std::shared_ptr<session_handler>> sessions;
 ```
 
 Next up we need to configure the accept handling, the accept signal on the end point will trigger asynchronously once for every
@@ -252,30 +253,29 @@ on the socket will eventually remove outstanding continuaions but untill then th
 ```c++
 void accept_connection()
 {
-    acceptor.async_accept(end_point,
-        [this](boost::system::error_code ec, boost::asio::local::stream_protocol::socket other)
-        {
-            if(ec)
-            {
-                // this branch is usually hit when the acceptor is disabled during shutdown.
-            }
-            else 
-            {
-                sessions.push_back(
-                    std::make_shared<session_handler>(std::move(other), //
-                    [](boost::system::error_code ec, tiny_ipc::servier_session &)
-                    {
-                        sessions.erase(                                     //
-                            std::remove_if(begin(sessions), end(sessions),  //
-                                [&s](auto const& item) { return (&s == &item->session); }),
-                            end(sessions));
-                    }
-                    );
+  acceptor.async_accept(end_point,
+    [this](boost::system::error_code ec, boost::asio::local::stream_protocol::socket other)
+    {
+      if(ec) 
+      {
+        // this branch is usually hit when the acceptor is disabled during shutdown.
+      }
+      else 
+      {
+        sessions.push_back(
+          std::make_shared<session_handler>(std::move(other), //
+          [](boost::system::error_code ec, tiny_ipc::servier_session &)
+          {
+            sessions.erase(                                     //
+              std::remove_if(begin(sessions), end(sessions),  //
+                [&s](auto const& item) { return (&s == &item->session); }),
+              end(sessions));
+          });
 
-                async_read(sessions.back());
-                accept_connections();
-            }
-        });
+        async_read(sessions.back());
+        accept_connections();
+      }
+    });
 }
 ```
 The library requires the user to provide a callback to be executed on errors. Errors in this case are most commonly disconnect events. 
@@ -290,44 +290,95 @@ interfaces.
 ```c++
 void async_read(std::shared_ptr<session_handler> const& c) 
 {
-    tiny_ipc::async_dispatch_messages<your_protocol>(  //
-        c->session, //
+  tiny_ipc::async_dispatch_messages<your_protocol>(  //
+    c->session,                                     //
 
-        tiny_ipc::methods_of("your_main_interface"_i, "1.0"_v,
+    tiny_ipc::methods_of("your_main_interface"_i, "1.0"_v,
 
-            "connect"_m = [this, c](::ucred cred, std::string const& client_name) -> bool
-            {
-                if (this->user_manager.test_user(cred))
-                {
-                    user_manager.register_user(cred, client_name);
-                    c->creds = cred;
-                    return true;
-                }
-                else
-                {
-                    c->session.close();
-                    return false;
-                }
-            },
+      "connect"_m = [this, c](::ucred cred, std::string const& client_name) -> bool
+      {
+        if (this->user_manager.test_user(cred))
+        {
+          user_manager.register_user(cred, client_name);
+          c->creds = cred;
+          return true;
+        }
+        else
+        {
+          c->session.close();
+          return false;
+        }
+      },
 
-            "some_other_method"_m = [this, c](std::string const& data)
-            {
-                if(!c->creds) // invalid request 
-                     return;
-                service_manager->perform_something(data);
-            }),
-              
-        tiny_ipc::methods_of("your_main_interface"_i, "1.2"_v,
-            "extension_method"_m = [this](int flags, std::string const& data)
-            {
-               service_manager->extended_action(flags, data);
-            }  //
-            ));
-    }
+      "some_other_method"_m = [this, c](std::string const& data)
+      {
+        if(!c->creds) return;
+        service_manager->perform_something(data);
+      }),
+        
+    tiny_ipc::methods_of("your_main_interface"_i, "1.2"_v,
+      "extension_method"_m = [this](int flags, std::string const& data)
+      {
+        service_manager->extended_action(flags, data);
+      })
+    );
+}
 ```
 
 
 ### How to write a client
+
+Similar boilerplate code is needed for the client
+```c++
+#include <tiny_ipc/client.h>
+#include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/asio/local/stream_protocol.hpp>
+#include <boost/asio/local/basic_endpoint.hpp>
+#include <boost/asio/completion_condition.hpp>
+
+// ...
+  boost::asio::io_context                       io_ctx;
+  boost::asio::local::stream_protocol::endpoint ep("/run/service/admin");
+  boost::asio::local::stream_protocol::socket   socket(io_ctx);
+```
+
+The socket needs to be connected first
+
+```c++
+  socket.connect(m_ep);
+```
+
+A client structure to keep track then can be constructed. 
+It need a reference to the socket and an error handler.
+Usually errors are caused by disconnects from the server.
+
+```c++
+  tiny_ipc::client my_client(socket,
+     [&io_ctx](boost::system::error_code ec, tiny_ipc::client&)
+     {
+       io_ctx.stop();
+     });
+```
+
+At some point signal handlers for all known or necessary interfaces
+have to be declared. This is similar to the method handlers on 
+the server side.
+
+```c++
+  async_dispatch_messages<your_protocol>(                       //
+    my_client,                                                  //
+    tiny_ipc::signals_of(                                       //
+      "your_main_interface"_i, "1.0"_v,                         //
+      "server_signal"_s = [](std::vector<char> const&) { ... }  //
+      ));
+    }
+```
+
+At some point the io context can be started. 
+
+```c++
+  io_ctx.run();
+```
 
 ## Exposing the protocol to other languages
 
