@@ -5,8 +5,8 @@
 #ifndef TINY_IPC_DETAIL_ENCODE_H_INCLUDED
 #define TINY_IPC_DETAIL_ENCODE_H_INCLUDED
 
-#include <tiny_ipc/detail/serialization_utilities.h>
-#include <tiny_ipc/detail/packet.h>
+#include <tiny_ipc/detail/serialization_utilities.hpp>
+#include <tiny_ipc/detail/packet.hpp>
 
 namespace tiny_ipc
 {

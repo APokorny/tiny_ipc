@@ -5,8 +5,8 @@
 #ifndef TINY_IPC_DETAIL_FORWARD_ITEM_H_INCLUDED
 #define TINY_IPC_DETAIL_FORWARD_ITEM_H_INCLUDED
 #include <tiny_tuple/map.h>
-#include <tiny_ipc/proto_def.h>  // id of item and name of
-#include <tiny_ipc/detail/protocol.h>
+#include <tiny_ipc/proto_def.hpp>  // id of item and name of
+#include <tiny_ipc/detail/protocol.hpp>
 
 namespace tiny_ipc::detail
 {

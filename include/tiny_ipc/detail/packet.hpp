@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <tiny_ipc/detail/protocol.h>
+#include <tiny_ipc/detail/protocol.hpp>
 #include <utility>
 #include <span>
 #include <cstring>

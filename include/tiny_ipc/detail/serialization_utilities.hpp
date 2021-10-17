@@ -14,8 +14,8 @@
 #include <string_view>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <tiny_ipc/fd.h>
-#include <tiny_ipc/proto_def.h>
+#include <tiny_ipc/fd.hpp>
+#include <tiny_ipc/proto_def.hpp>
 
 namespace tiny_ipc
 {

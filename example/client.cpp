@@ -5,7 +5,7 @@
 #include "chat.h"
 #include <iostream>
 #include <pwd.h>
-#include <tiny_ipc/client.h>
+#include <tiny_ipc/client.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/local/basic_endpoint.hpp>

@@ -1,7 +1,7 @@
 #ifndef CHAT_H_INCLUDED
 #define CHAT_H_INCLUDED
 
-#include <tiny_ipc/proto_def.h>
+#include <tiny_ipc/proto_def.hpp>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif

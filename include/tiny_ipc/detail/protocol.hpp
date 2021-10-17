@@ -5,7 +5,7 @@
 #ifndef TINY_IPC_DETAIL_PROTOCOL_H_INCLUDED
 #define TINY_IPC_DETAIL_PROTOCOL_H_INCLUDED
 
-#include <tiny_ipc/proto_def.h>
+#include <tiny_ipc/proto_def.hpp>
 #include <kvasir/mpl/algorithm/all.hpp>
 #include <kvasir/mpl/algorithm/find_if.hpp>
 #include <kvasir/mpl/sequence/size.hpp>

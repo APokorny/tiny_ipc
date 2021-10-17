@@ -209,7 +209,7 @@ See chat client and server for reference in examples folder.
 
 Some asio boilerplate is needed:
 ```c++
-#include <tiny_ipc/server_session.h>
+#include <tiny_ipc/server_session.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/local/basic_endpoint.hpp>
 
@@ -330,7 +330,7 @@ void async_read(std::shared_ptr<session_handler> const& c)
 
 Similar boilerplate code is needed for the client
 ```c++
-#include <tiny_ipc/client.h>
+#include <tiny_ipc/client.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/local/basic_endpoint.hpp>

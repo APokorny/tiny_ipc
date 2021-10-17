@@ -11,7 +11,7 @@
 #include <kvasir/mpl/types/list.hpp>
 #include <kvasir/mpl/algorithm/zip_with.hpp>
 #include <kvasir/mpl/sequence/make_sequence.hpp>
-#include <tiny_ipc/detail/to_item.h>
+#include <tiny_ipc/detail/to_item.hpp>
 
 #define TINY_IPC_USE_LEGACY_LITERAL_OPERATORS
 namespace tiny_ipc

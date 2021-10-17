@@ -2,10 +2,10 @@
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "chat.h"
+#include "chat.hpp"
 #include <algorithm>
 #include <boost/system/error_code.hpp>
-#include <tiny_ipc/server_session.h>
+#include <tiny_ipc/server_session.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/local/basic_endpoint.hpp>
 #include <boost/asio/completion_condition.hpp>

@@ -13,8 +13,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <boost/asio/local/stream_protocol.hpp>
-#include <tiny_ipc/detail/packet.h>
-#include <tiny_ipc/detail/message_parser.h>
+#include <tiny_ipc/detail/packet.hpp>
+#include <tiny_ipc/detail/message_parser.hpp>
 
 namespace tiny_ipc::detail
 {

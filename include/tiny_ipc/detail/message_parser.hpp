@@ -12,7 +12,7 @@
 #include <cstring>
 #include <vector>
 #include <optional>
-#include <tiny_ipc/fd.h>
+#include <tiny_ipc/fd.hpp>
 
 namespace tiny_ipc::detail
 {

@@ -5,8 +5,8 @@
 #ifndef TINY_IPC_DETAIL_DECODE_H_INCLUDED
 #define TINY_IPC_DETAIL_DECODE_H_INCLUDED
 
-#include <tiny_ipc/detail/message_parser.h>
-#include <tiny_ipc/detail/serialization_utilities.h>
+#include <tiny_ipc/detail/message_parser.hpp>
+#include <tiny_ipc/detail/serialization_utilities.hpp>
 #include <limits>
 #include <string>
 
