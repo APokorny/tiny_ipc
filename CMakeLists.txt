@@ -5,10 +5,10 @@ cmake_minimum_required(VERSION 3.14)
 project(tiny_ipc VERSION 0.1.0 LANGUAGES CXX)
 
 include(cmake/CPM.cmake)
-CPMAddPackage(NAME kvasir-mpl
+CPMAddPackage(NAME kvasir_mpl
   GITHUB_REPOSITORY "kvasir-io/mpl"
   GIT_TAG development)
-CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.6.0")
+CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.9.0")
 CPMAddPackage(NAME tiny_tuple
   GITHUB_REPOSITORY "APokorny/tiny_tuple"
   GIT_TAG development)

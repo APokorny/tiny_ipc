@@ -78,7 +78,9 @@ tags
 # Persistent undo
 [._]*.un~
 
-#!! ERROR: vscode is undefined. Use list command to see defined gitignore types !!#
+### VSCode ###
+build
+.vscode
 
 ### VisualStudio ###
 ## Ignore Visual Studio temporary files, build results, and
