@@ -2,7 +2,7 @@
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "chat.h"
+#include "chat.hpp"
 #include <iostream>
 #include <pwd.h>
 #include <tiny_ipc/client.hpp>
@@ -25,8 +25,8 @@ auto& connect_socket(boost::asio::local::stream_protocol::socket& sock, boost::a
  * the interprocess functionalities seamlessly integrate with the rest of the code base.
  *
  * There is no need to do this, but it might help to avoid some of the boilerplate.
- * Alternative strategies is to provide domain specifici free-standing functions that prefill
- * the complie time aspects of the communication like interface ids, protocol and method
+ * Alternative strategies is to provide domain specific free-standing functions that prefill
+ * the compile time aspects of the communication like interface ids, protocol and method
  * name.
  */
 struct chat_client

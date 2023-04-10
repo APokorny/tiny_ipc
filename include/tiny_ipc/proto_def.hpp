@@ -6,6 +6,7 @@
 
 #include <type_traits>
 #include <cstddef>
+#include <cstdint>
 #include <algorithm>
 #include <tiny_tuple/map.h>
 #include <kvasir/mpl/types/list.hpp>
@@ -339,7 +340,7 @@ struct interface_id
     using name                     = N;
     using version                  = V;
     static constexpr uint32_t hash = V::hash ^ N::hash;
-    interface_id(N, V)             {}
+    interface_id(N, V) {}
 };
 
 template <c::interface_name N, c::version V, c::interface_param... Args>
